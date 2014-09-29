@@ -1,0 +1,1471 @@
+M_Star-Anshul-Padyal-
+=====================
+/*
+include the libraries
+
+import workspace_graph
+import sys
+import prm_graph
+import time as timer  //# So that we can use the time command in ipython
+import SortedCollection
+from col_set_addition import add_col_set_recursive, add_col_set
+from col_set_addition import OutOfTimeError, NoSolutionError, col_set_add
+import pdb
+
+
+*/
+#include <iostream>
+#include <workspace_graph.h>
+#include <prm_graph.h>
+#include <SortedCollection.h>
+#include <pdb.h>
+#include <timer.h>
+#include <col_set_addition.h>
+
+// vector<pair<int,int>> used as datatype of coordinates for simplicity but according to the Algorithm vector<pair<char,int>>
+//can also be used
+
+int MAX_COST = workspace_graph.MAX_COST;
+
+int PER_ROBOT_COST = 1;
+vector<pair<int,int>> global_move_list;
+/*
+I have represented every tuple as a pair in c++ and the path as a vector of pairs
+*/
+// if we represent the path as set of tuples of coordinates//
+
+/*
+
+*/
+
+ datatype(path) find_path(int** obs_map, vector<pair<int,int>> init_pos,vector<pair<int,int>> goals,bool recursive=true,double inflation=1.0,
+                                double time_limit=5 * 60.0,bool astar=false,bool get_obj=false,bool connect_8=false,
+                                bool full_space=false,bool return_memory=false,bool flood_fill_policy=false,
+                                datatype col_checker= Null,bool epemstar=false)
+
+{// I couldn't find any substitute for isinstance in C++//
+    if (col_checker == Null || isinstance(col_checker,workspace_graph.Edge_Checker))
+    {
+        /*
+
+        *///the map function applies the individual items in goals to tuple and I was unable to find a relacement of
+        //this in C++
+       goals = tuple(map(tuple, goals));
+        init_pos = tuple(map(tuple, init_pos));
+    }
+    Od_Mstar o( obs_map, goals, recursive, inflation,
+                          astar, connect_8, full_space,
+                          flood_fill_policy, col_checker,
+                          epemstar);
+    ////# Need to make sure that the recursion limit is great enough to
+    ////# actually construct the path
+    int max = sub_search[(i, )].get_cost(init_pos[0]);
+    for(int i=1; i<init_pos.size(); i++)
+    {
+        if(o.sub_search[(i, )].get_cost(init_pos[i])>max)
+        {
+            max = o.sub_search[(i, )].get_cost(init_pos[i]);
+        }
+
+    }
+
+    int longest = max([o.sub_search[(i, )].get_cost(init_pos[i])
+                       for(int i=0; i<init_pos.size(); i++)]);
+    ////# Guess that the longest path will not be any longer than 5 times the
+    ////# longest individual robot path
+    sys.setrecursionlimit(max(sys.getrecursionlimit(), longest * 5 *
+                              init_pos.size()));
+    vector<pair<int,int>> path = o.find_path(init_pos, time_limit);
+    num_nodes = o.get_memory_useage(false);
+    corrected_mem = o.get_memory_useage(true)
+    if(get_obj)
+        return path, o;
+    if(return_memory)
+        return path, num_nodes, corrected_mem;
+    return path;
+}
+
+
+
+class Od_Mstar(object){
+    //"""Implements M* and rM* using operator decomposition instead of
+    //basic M* as the base computation.
+    /*
+
+for obstacle
+goals - ((x1, y1), (x2, y2), ...) coordinates of the
+goal, should be tuples
+recursive - True for rM*, false for basic M*
+sub_search - Sub planners, should be None for the full
+configuration space
+col_checker - object to handle robot-robot collision
+checking. Should implement the same
+interface as workspace_graph.Edge_Checker
+rob_id - maps local robot identity to full
+configuration space identity, should be
+None for the full configuration space
+instance
+inflation - how much the metric should be inflated by
+end_time - when the search should be terminated
+connect_8 - True for 8 connected graph, False for 4
+connected graph
+astar - use basic A* instead of operator
+decomposition
+full_space - whether to perform a full configuration
+space search
+flood_fill_policy - compute policy with flood fill instead of
+resumable A*
+epeastar - Uses EPEA* instead of OD or A* for graph
+search
+offset_increment - how much to increase the EPEA* offset after
+every expansion
+"""*/
+    int** obs_map;
+    bool  recursive;
+    datatype sub_search[]; //number of elements in the structure of subsearch are not known//
+    datatype rob_id;
+    vector<pair<int,int>> goals;
+    datatype graph;
+    double end_time;
+    double inflation;
+    bool connect_8;
+    bool astar;
+    bool epeastar;
+    int offset_increment;
+    int updated;
+    int num_bots;
+    bool full_space;
+    datatype open_list_key;
+    datatype col_checker;
+    bool flood_fill_policy;
+    datatype policy_keys;
+    datatype init_nodes;
+    datatype open_list;
+    returntype(col_checker.incremental_cross_over()) col_set;
+
+    public:
+    //I have written lambda function below
+    int x1(int x)
+    {
+        return (-x.cost - x.h * inflation - x.offset);
+    }
+
+    int x2(int x)
+    {
+        return (-x.cost - x.h * inflation);
+    }
+// those variables whose datatypes are not known are written preceeded by datatype//
+    Od_Mstar(int** obs_ma,vector<pair<int,int>> goal,bool recursiv,datatype sub_searc=Null,
+                datatype col_checke=Null,datatype rob_i=Null,double inflatio=1.0,
+                double end_tim=10**15,bool connect_=false,bool asta=false,
+                bool full_spac=false,bool flood_fill_polic=false,bool epeasta=false,
+                 int offset_incremen=1){
+        //# visualize - turn on visualization code - DISABLED
+        obs_map = obs_ma;
+        recursive = recursiv;
+        sub_search = sub_searc;
+        rob_id = rob_i;
+        goals = goal;
+        //# Graph that holds the graph reprsenting the joint configuration
+        //# space
+        //graph = {};
+        end_time = end_tim;
+        inflation = float(inflatio);
+        connect_8 = connect_;
+        astar = asta;
+        epeastar = epeasta;
+        offset_increment = offset_incremen;
+
+        //# Store some useful values
+        updated = 0;
+        num_bots = len(goal);
+        //#  visualize = visualize
+        full_space = full_spac;
+        //# Need a different key incorporating the offset for EPEM*
+        if(epeastar)
+          {open_list_key = x1(x);}
+        else
+            open_list_key = x2(x);
+        if(rob_id= None)
+            rob_id = tuple(range(len(goals)));
+        col_checker = col_checke;
+        if(col_checker= none)
+            col_checker = workspace_graph.Edge_Checker();
+        flood_fill_policy = flood_fill_polic;
+        //# Making everything that can be immutable,  immutable
+        this->gen_policy_planners(sub_search,  obs_map,  goals,connect_8);
+
+     void gen_policy_planners(datatype(sub_search) sub_searchm,int** obs_mapm,vector<pair<int,int>> goal,bool connect_8m){
+        /*"""Creates the sub-planners and necessary policy keys.  This is
+        because pretty much every sub-planner I've made requires
+        adjusting the graph used to create the policies and passing
+        around dummy sub_searches
+
+        side effects to generate  sub_search and  policy_keys
+        """*/
+        policy_keys = tuple([(i, ) for( int i=0;i< rob_id.size;i++)]);
+        sub_search = sub_searchm;
+        if( sub_search== Null){
+            sub_search = {};
+            //# Wrapping the robot number in a tuple so we can use the same
+            //# structure for planners for compound robots
+            if (isinstance(col_checker, prm_graph.PRM_Edge_Checker)){
+               for (int dex,int key=0; key<policy_keys.size();key++)
+                    sub_search[key] = prm_graph.PRM_Graph(
+                        col_checker.graph, goals[dex]);
+            }
+            else if (flood_fill_policy){
+                for (int dex,int key=0;key<enumerate( policy_keys);key++)
+                     sub_search[key] = workspace_graph.Workspace_Graph(
+                        obs_map, goals[dex], connect_8=connect_8m);
+            }
+            else{
+                for(int dex,int key=0;key<enumerate( policy_keys);key++){
+                     sub_search[key] = workspace_graph.Astar_Graph(
+                        obs_map, goals[dex], connect_8=connect_8m);
+                        };
+            };
+        };
+     }
+
+    int get_graph_size(bool correct_for_size=true){
+       //"""Returns the number of nodes in the current graph"""
+        if (correct_for_size){
+            return  graph.size() * rob_id.size();
+            }
+        return  graph.size;
+
+    }
+
+    int get_memory_useage(bool correct_for_size=true)
+    {
+
+        //"""Returns the total number of nodes allocated in this planner
+        //and any subplanners.//
+
+        int temp_sum =  get_graph_size(correct_for_size);
+        for( i=0;i<sub_search.size();i++)
+            temp_sum +=  sub_search[i].get_graph_size();
+        return temp_sum;
+    }
+
+    void reset(self)
+        {//"""resets the map for later searches,  does not remove
+        //forwards_pointer
+        //"""
+         int updated += 1;}
+
+    int heuristic( vector<pair<int,int>> coord,bool standard_node){
+        //"""Returns the heuristic value of the specified coordinate.
+
+        //Does not handle inflation naturally so we can update the
+        //heuristic properly
+
+        //coord         - coordinate of the node at which to compute the
+                        //heuristic
+        //standard_node - whether this is a standard node
+
+        if (standard_node)
+        {
+            int dex=0;
+        int sum = sub_search[0].get_cost(coord[1][dex]);
+            for(int key=1; key<enumerate( policy_keys); key++)
+            {
+                {
+                    sum += sub_search[key].get_cost(coord[1][dex]);
+                }
+            }
+
+           int cost = sum;
+            //# return  inflation * cost
+            return cost;
+        }
+        else{
+            //# Compute heuristic for robots which have moved
+            int dex=0;
+            int sum = sub_search[0].get_cost(coord[1][dex]);
+            for(int key=1; key< policy_keys.size(); key++)
+            {
+                {
+                    sum += sub_search[key].get_cost(coord[1][dex]);
+                }
+            }
+            int cost = sum;
+
+        for (int dex,int key=coord[1].size(); key<policy_keys.size();key++)
+                                 {
+
+                                     cost += sum( sub_search[key].get_cost(coord[0][dex + len(coord[1])]);
+
+                                 }
+
+            //# compute heuristic for robots which have not moved
+
+            return cost;}};
+
+
+      datatypeof(col_checker.cross_over) pass_through( vector<pair<int,int>> coord1,vector<pair<int,int>> coord2){
+        /*"""Tests for a collision during transition from coord 1 to coord
+        2.
+
+        coord1, coord2 - joint coordinates of multirobot system
+
+        returns:
+
+        collision set for the edge,  empty list if there are no
+        collisions
+    """
+        //# return  col_checker.pass_through(coord1, coord2,  recursive)*/
+        return  col_checker.cross_over(coord1, coord2,  recursive);}
+
+     datatype(col_set) incremental_col_check(vector<pair<int,int>>  start_coord,vector<pair<int,int>> new_coord){
+        //* Im confused if I can use int* as the datatpye of col_set?//
+
+        /*""Performs an incremental collision check for new coord.
+
+        Assumes that the position of a single new robot has been added to
+        a list of coordinates of robots.  Checks whether adding this new
+        robot will lead to a collision.  Start coord is the joint state
+        before the action being built in new_coord,  and may contain more
+        robots than new_coord. counts on the implementation of the
+        incremental collision checks to be intelligent to avoid issues
+
+        start_coord - coordinate at which the system starts
+        new_coord   - coordinate to which the system moves
+
+        returns:
+
+        collision_set formed form the colliding robots during the move
+        """ */
+        col_set =  col_checker.incremental_cross_over(
+            start_coord, new_coord,  recursive);
+        if(col_set)
+            return col_set;
+        return  col_checker.incremental_col_check(
+            new_coord,  recursive);};
+
+
+
+
+    datatypeof(graph[]) get_node( vector<pair<int,int>> coord,bool standard_node){
+       /*""Returns the node at the specified coordinates.
+
+        Remember intermediate nodes are of the form
+        (base_coord, move_tuple)
+
+        coord         - coordinates of the node,  potentially an
+                        intermediate node
+        standard_node - whether this is a standard node or an
+                        intermediate node
+        """*/
+         if(coord in  graph){
+            //# Node already exists.  reset if necessary
+            t_node =  graph[coord];
+            t_node.reset( updated);
+            return t_node;}
+        //# Need to instantiate the node
+        datatype col = none;
+        if(standard_node)
+           (col =  col_checker.col_check(coord,  recursive);)
+        else
+            //# Only check for collisions between robots whose move has
+            //# been determined
+           col =  col_checker.col_check(coord[1],  recursive);
+        int free = (len(col) == 0);
+        t_node = mstar_node(coord, free,  recursive, standard_node);
+        //# Cache the resultant col_set
+        t_node.col_set = col;
+        t_node.updated =  updated;
+        //# Add the node to the graph
+         graph[coord] = t_node;
+        t_node.h =  heuristic(coord, standard_node);
+        return t_node;}
+
+    vector<pair<int,int>> get_step( vector<pair<int,int>> init_pos,bool standard_node=true){
+       /*""Get the optimal step from init_pos.
+
+        Computes the entire optimal path if necessary, but preferentially
+        relying on the cached paths stored in mstar_node.forwards_ptr.
+
+        init_pos      - coordinate of the node to compute the step from
+        standard_node - standard_node whether init_pos represents a
+                        standard node
+
+        returns:
+
+        coordinate of the optimal step towards the goal
+        """*/
+       datatypeof(graph[]) cur_node =  get_node(init_pos, standard_node);
+        vector<pair<int,int>> temp = cur_node.get_step();
+        if( temp != Null )
+            return temp;
+        //# Use a zero time limit,  so the end time will not be modified
+        datatype(path) path =  find_path(init_pos, time_limit=-1);
+        return cur_node.get_step();}
+
+     datatype(first) gen_init_nodes(vector<pair<int,int>>  init_pos){
+        /*"Generate the initial search nodes.
+
+        Potentially more than one node is generated, but in practice
+        will usually just one will be generated
+
+        init_pos - initial position
+
+        returns:
+
+        list of initial nodes
+        """*/
+       returntype(get_node) first =  get_node(init_pos, true);
+        first.open = true;
+        first.cost = 0;
+        first.back_ptr = first;
+        return [first];}
+
+    datatypeof(path) find_path(vector<pair<int,int>>  init_pos,double time_limit=5 * 60){
+       /*"""Finds a path from init_pos to the goal specified when self
+        was instantiated.
+
+        init_pos   - ((x1, y1), (x2, y2), ...) coordinates of initial
+                     position
+        time_limit - time allocated to find a solution.  Will raise an
+                     exception if a path cannot be found within this time
+                     period
+        """*/
+         reset();
+        if( time_limit > 0)
+             end_time = timer.clock() + time_limit;
+
+        //# Configure the goal node
+        datatypeof(graph[]) goal_node =  get_node( goals, true);
+        goal_node.forwards_ptr = goal_node;
+        //# Use the negation of the cost,  so SortedCollection will put the
+        //# lowest value item at the right of its internal list
+        datatype(first) init_nodes =  gen_init_nodes(init_pos);
+        datatype open_list = SortedCollection.SortedCollection(init_nodes,
+                                                      key= open_list_key);
+
+        while( open_list.size > 0)
+            {if (timer.clock() >  end_time)
+                raise OutOfTimeError(timer.clock());
+            node, consistent = open_list.consistent_pop();
+            if (!consistent)
+                continue;
+            node.open = false;
+            if  (solution_condition(node))
+                {datatype(path) path = node.get_path();
+                return tuple(path);}
+             expand(node, open_list);
+             }
+        raise NoSolutionError();}
+
+    bool solution_condition(datatype node){
+        /*"""Checks whether we have finished finding a path when node has
+        been reached
+
+        Checks whether node.forwards_ptr indicates that a path to the
+        goal has been found
+
+        node - node to check for indicating a path to the goal
+
+        returns:
+
+        true if goal has been reached or a cached path to the goal has
+        been reached, else false
+        """*/
+        if (node.forwards_ptr != Null)
+            {return true;}
+        else
+            return false;}
+
+    void expand( datatype(node) node,datatype(open_list) open_list){
+        /*"""Handles the expansion of the given node and the addition of
+        its neighbors to the open list
+
+        node      - node to expand
+        open_list - open list used during the search
+        """*/
+        node.closed = true;
+        bool epastarm;
+        int k;
+        scanf("%d",k);
+        epastarm= k;
+        //# ASSUMES THAT get_neighbors HANDLES UPDATING NEIGHBOR COST,
+        //# AND DOES NOT RETURN NEIGHBORS FOR WHICH THERE IS ALREADY A
+        //# PATH AT LEAST AS GOOD
+        vector<pair<int,int>> neighbors = Null;
+        col_set = Null;
+        if (recursive)
+            {neighbors,  col_set =  get_neighbors_recursive(node);}
+        else
+            neighbors,  col_set =  get_neighbors_nonrecursive(node);
+
+        //# node is the only element in the backpropagation sets of
+        //# neighbors that has changed,  so we can backpropagate from here
+        datatype(col_set) old_col_set = node.col_set;
+        if (!full_space)
+            node.back_prop_col_set(col_set, open_list, epeastar= epeastarm);
+        temp = [];
+        for (i=0;i<neighbors.size;i++)
+            {i.back_ptr = node;
+            //# Even if the node is already in the open list,  removing if
+            //# from its old position (given by the old cost value) is too
+            //# expensive, requiring an O(N) operation to delete.  Simply
+            //# add the new value and reject the old copy (which will be
+            //# marked as closed),  when you come to it
+            i.open = true;
+            open_list.insert_right(i);}
+        if  (epeastar)
+            ////# if running epeastar
+            {if (old_col_set == node.col_set)
+               // //# If the collision set changed,  then adding the node
+               // //# back to the open list with properly updated collision
+               // //# set has been handled by the backprop function
+                {node.offset +=  offset_increment;
+                open_list.insert(node);}}
+
+    }
+
+
+//below function returns neighbors in form of vector<pair<int,int>> and collision set in form of vector<int>
+
+struct neighbors_return1{
+
+    vector<pair<int,int>> member1;
+    returntype(col_checker.incremental_cross_over()) member2;
+};
+struct neighbors_return2{
+
+    returntype(col_checker.incremental_cross_over()) member3;
+    returntype(col_checker.incremental_cross_over()) member2;
+};
+   neighbors_return1/*or neighbors_return2*/ od_mstar_neighbors(datatype(node)  node){
+        /*"""Generates the free neighbors of the given node for the
+        non-recursive case, using operator decomposition
+
+        Also returns the associated collision set due to neighbors
+        which are non-free due to robot-robot collisions.  Only returns
+        nodes which can be most cheaply reached through node
+
+        node - node to determine neighbors
+
+        returns:
+
+        (neighbors, col_set)
+        neighbors - collision free neighbors which can most efficiently
+                    be reached from node
+        col_set   - collision set for neighbors which are not collision
+                    free
+        """*/
+        //int col_set = [];
+        if (!node.free)
+            ////# Can't have an out neighbor for a node in collision
+            return col_set, node.col_set;
+        int rob_dex = 0;  //# Keeps track of the robot to move in this step
+
+        //# split the coordinates into the start coordinate and the move
+        //# list if the node is standard,  doing this so variables are
+        //# initialized in  the preferred namespace,  which is probably not
+        //# necessary
+        vector<pair<int,int>> move_list = ();
+        vector<pair<int,int>> start_coord = node.coord;
+        if(!node.standard_node)
+            {
+                start_coord = node.coord[0];
+                move_list = node.coord[1];
+                rob_dex = node.coord[1].size
+            }
+        vector<pair<int,int>> neighbors = Null;
+        if (((node.col_set.size > 0 && rob_dex in node.col_set[0]) ||
+                 dataype full_space))
+            //# This robot is in the collision set,  so consider all
+            //# possible neighbors
+            {neighbors =  sub_search[ policy_keys[rob_dex]]\
+                            .get_neighbors(start_coord[rob_dex]);}
+        else
+            {neighbors = [ sub_search[ policy_keys[rob_dex]].get_step(
+                start_coord[rob_dex])];}
+        //# check if this is the last robot to be moved
+        filled = (rob_dex == ( num_bots - 1));
+        new_neighbors = [];
+        //# visualize_holder = []
+        for (i=0;i<neighbors.size;i++){
+            //# Generate the move list with the new robot position
+            datatype/structuretype new_moves = list(move_list);
+            new_moves.append(i);
+            new_moves = tuple(new_moves);
+            //# Check for collisions in the transition to the new
+            //# position, only need to consider the robots in the move list
+            //# pass through
+           returntypeof(pass_through) pass_col =  pass_through(start_coord[:rob_dex + 1], new_moves);
+            if (len(pass_col) > 0){
+                //# Have robot-robot collisions
+                col_set = col_set_add(pass_col, col_set,  recursive);
+                continue;};
+            //# Need to branch on whether we have filled the move list
+            new_node = None;
+            if (filled)
+                //# Generate a standard node.  Static collisions are found
+                //# in  get_node()
+                {new_node =  get_node(new_moves, true);}
+            else
+                //# Generate an intermediate node
+                {new_node =  get_node((start_coord, new_moves), false);}
+
+            if (node not in new_node.back_prop_set)
+                new_node.back_prop_set.append(node);
+            //# Always need to add the col_set of any vertex that we can
+            //# actually reach,  as otherwise,  we would need to wait for
+            //# another robot to collide downstream of the reached vertex
+            //# before that vertex would back propagate its col_set
+            col_set = col_set_add(new_node.col_set, col_set,  recursive);
+            if (!new_node.free)
+                continue;
+            //# Skip if closed
+            if (new_node.closed)
+                continue;
+            //# Handle costs, which depends soely on the move list,
+            //# function to allow for alternate cost functions
+            int temp_cost =  od_mstar_transition_cost(start_coord, node.cost,i, rob_dex);
+
+            if (temp_cost >= new_node.cost)
+                continue;
+            new_node.cost = temp_cost;
+            new_neighbors.append(new_node);
+            //# Set the intermediate nod's col_set equal to its parent,
+            //# so later elements will actually be explored.  Not
+            //# technically required but will cut back on thrashing
+            if (new_node.standard_node)
+                new_node.add_col_set(node.col_set);
+
+        }
+
+        neighbors_return ans;
+        ans.member1 = new_neighbors;
+        ans.member2 = col_set;
+
+        return ans;
+        }
+
+    int od_mstar_transition_cost( vector<pair<int,int>> start_coord,int prev_cost,vector<pair<int,int>> neighbor,int rob_dex){
+       /* """Computes the transition cost for a single robot in od_mstar
+        neighbor generation
+
+        start_coord - base position of robots (prior to move assignment)
+        prev_cost   - cost of base node
+        neighbor    - proposed move assignmetn
+        rob_dex     - robot move is assigned to
+
+        returns:
+
+        cost of a single robot transitioning state
+        """*/
+        //# TODO: shift computation to the underlying graph
+        if (!(start_coord[rob_dex] ==  goals[rob_dex] && neighbor ==  goals[rob_dex]))
+                prev_cost += PER_ROBOT_COST;
+
+        return prev_cost;
+        }
+
+   neighbors_return gen_epeastar_coords(datatype  node){
+        /*"""Helper function for generating neighbors of a node using EPEA*
+
+        Uses a two step process. First the incremental costs are
+        computed, then the neighbors fitting those incremental costs.
+        More directly matches what was done in the EPEA* paper.  Performs
+        incremental collision checking during the generation of
+        neighbors,  to prune out as many invalid nodes as early as
+        possible
+
+        node - node for which to generate neighbors
+        """*/
+        datatype( add_col_set) adder = add_col_set;
+        if  (recursive)
+            adder = add_col_set_recursive;
+        datatype(node.offset) offset = node.offset;
+        vector<pair<int,int>> coord = node.coord;
+
+        if (node.col_set.size == 0)
+            //# have empty collision set
+           {
+                vector<pair<int,int>> new_coord = tuple(sub_search[ policy_keys[dex]].get_step(coord[dex]) for (int dex= 0; dex<num_bots.size; dex++);
+                returntypeof(pass_through) pass_col =  pass_through(coord, new_coord);
+                if (pass_col)
+                    return [], pass_col;
+                datatype(col_checker.col_check) col =  col_checker.col_check(new_coord,  recursive);
+                if (col)
+                    return [], col;
+                return [new_coord], [];
+            }
+                search_list = [(0, ())];
+                assert node.col_set.size == 1;
+                dataype(col_set) node_col = node.col_set[0];
+                for (rob_dex in xrange( num_bots))
+                {
+                    if (rob_dex in node_col)
+                        offsets =  sub_search[policy_keys[rob_dex]].get_offsets(coord[rob_dex]);
+                    else
+                        offsets = (0, );
+                    new_list = [];
+                    for (cost,pos in search_list)
+                    {
+                        for (off in offsets)
+                        if rob_dex <  num_bots - 1;
+                            if (off + cost <= offset)
+                                {new_list.append((off + cost, pos + (off, )));}
+                        else if (off + cost == offset)
+                            //# For the last robot,  only want to keep costs which
+                            //# match perfectly
+                            new_list.append((off + cost, pos + (off, )));
+                            search_list = new_list;
+                    }
+
+                neighbors = [];
+                col_set = [];
+                for (datatype offset,int costs =0 ;costs<search_list.size(); costs++)
+                {
+                    gen_list = [()];
+                    for (int dex=0,int c=0; c<costs ; c++))
+                    {
+                        if (dex in node_col)
+                            {neib =  sub_search[ policy_keys[dex]].get_offset_neighbors(coord[dex], c);}
+                        else
+                            {neib = ((0,  sub_search[ policy_keys[dex]].get_step(coord[dex])), )};
+
+                        new_list = [];
+                        for (offset, n in neib)
+                        {
+                            int nbots = dex + 1;
+                            vector<pair<int,int>>prev_coord = coord[:nbots];
+                            for (old in gen_list)
+                            {
+                                new_coord = old + (n, );
+                            //# Perform collision checking
+                                tcol =  incremental_col_check(coord, new_coord);
+                                if (tcol)
+                                {
+                                    col_set = adder(col_set, tcol);
+                                    continue;
+                                }
+                                new_list.append(new_coord);
+                            }
+
+                        }
+                        gen_list = new_list;
+                    }
+                    neighbors.extend(gen_list);}
+
+                neighbors_return st;
+                st.member1 = neighbors;
+                st.member2 = col_set;
+                return st;
+
+        }
+
+    neighbors_return (get_epeastar_neighbors( datatype node)){
+        /*"""Generates the free neighbors of the given node for the
+        non-recursive case.
+
+        Also returns the associated collision set due to neighbors
+        which are non-free due to robot-robot collisions.  Only returns
+        nodes which can be most cheaply reached through node
+
+        node - node to be expanded
+
+        returns:
+        (neighbors, col_set)
+        neighbors - neighbors that can most be efficiently reached from
+                    node, that are collision free
+        col_set   - collisions incurred when trying to reach
+                    non-collision free nodes
+        """*/
+        col_set = [];
+        if (!node.free)
+            //# Can't have an out neighbor for a node in collision
+            return [], node.col_set;
+        offset = node.offset;
+        vector<pair<int,int>> start_coord = node.coord;
+        neighbor_coords, col_set =  gen_epeastar_coords(node);
+        neighbors = [];
+        for (int i=0; i<neighbor_coords.size; i++)
+            {datatypeof(node) new_node =  get_node(i, true);
+            if (node not in new_node.back_prop_set)
+                new_node.back_prop_set.append(node);
+            if (!new_node.free)
+                continue;
+            //# update costs
+            if (new_node.closed)
+                continue;
+            int t_cost =  epeastar_transition_cost(start_coord, node.cost, i);
+            if (t_cost < new_node.cost)
+                {new_node.cost = t_cost;
+                new_node.back_ptr = node;
+                neighbors.append(new_node);};}
+
+        neighbors_return st;
+                st.member1 = neighbors;
+                st.member2 = col_set;
+        return st;
+
+    }
+
+    int epeastar_transition_cost( vector<pair<int,int>> start_coord,vector<pair<int,int>> prev_cost,vector<pair<int,int>> new_coord)
+    {
+        /*"""Computes the cost of a new node at the specified coordinates,
+        starting from the given position and cost
+
+        start_coord - node at which the system starts
+        prev_cost   - cost of the node at start_coord
+        new_coord   - destination node
+        """*/
+        for (int i=0;i<start_coord.size();i++)
+        {
+            if (!(start_coord[i] ==  goals[i] && start_coord[i] == new_coord[i]))
+                prev_cost += 1;
+        }
+        return prev_cost;
+    }
+
+    neighbors_return get_neighbors_nonrecursive( datatypeof(node) node)
+    {
+        /*"""Generates neighbors using a non-recursive method.  Note that
+        collision sets will still be generated in the style specified by
+         recursive
+
+        node - node for which to generate neighbors
+        """*/
+
+        if(astar)
+        {
+            return  get_astar_neighbors(node);
+        }
+        else if(epeastar)
+        {
+            return  get_epeastar_neighbors(node);
+        }
+
+        return  od_mstar_neighbors(node);
+    }
+
+    void create_sub_search( vector<pair<int,int>> new_goals, datatype(rob_id) rob_id)
+    {
+        /*"""Creates a new instance of a subsearch for recursive search
+
+        new_goals - goals for the subset of the robots
+        rob_ids   - ids of the robots involved in the subsearch
+
+        returns:
+
+        new OD_Mstar instance to perform search for the specified subset
+        of robots"""*/
+        return Od_Mstar(obs_map,new_goals,  recursive,
+                        sub_search= sub_search,
+                        col_checker= col_checker, rob_id=rob_id,
+                        inflation= inflation,
+                        end_time= end_time, connect_8= connect_8,
+                        astar= astar, full_space= full_space,
+                        epeastar= epeastar);
+    }
+
+    def get_subplanner_keys(datatype col_set)
+    {
+        /*"""Returns keys to subplanners required for planning for some
+        subset of robots.
+
+        col_set - collision set to be solved
+
+        returns:
+
+        keys for the necessary subplanners in  sub_search
+        """*/
+        //# Convert the collision sets into the global indicies,  and
+        //# convert to tuples.  Assumes  rob_id is sorted
+
+ }
+
+        global_col = map(lambda y: tuple(map(lambda x:  rob_id[x], y)),col_set);//could not find a right substitute for this in C++
+        //# generate the sub planners,  if necessary
+        for (int dex, int gc=0; gc<global_col.size; gc++)
+        {
+            if (gc not in  sub_search){
+                t_goals = tuple([ goals[k] for k in col_set[dex]]);
+                sub_search[gc] =  create_sub_search(t_goals, gc);
+            }
+        }
+        return global_col;
+    }
+
+    def get_neighbors_recursive( datatype node){
+        /*"""Get the neighbors of node for recursive M*.
+
+        Uses operator decomposition style expansion when necessary,  may
+        fail when called on an intermediate node
+
+        node - node for which to generate neighbors
+
+
+        returns:
+        (neighbors, col_set)
+        neighbors - list of coordinates for neighboring, reachable
+                    nodes
+        col_set   - collisions generated by trying to transition to
+                    non-reachable neighbors
+        """*/
+        //# Sort the collision set,  which also converts them into lists
+        for(int i=0;i<node.col_set.size();i++)
+        {
+            col_set.append(sorted(node.col_set[i]));
+        }
+ @@       col_set = map(sorted, node.col_set);
+        //# Use standard operator decomposition,  if appropriate
+        if (col_set.size() == 1 and col_set[0].size() ==  num_bots)
+            //# At base of recursion case
+            return  get_neighbors_nonrecursive(node);
+        start_coord = node.coord;
+        if (not node.standard_node)
+            assert false;
+        //# Generate subplanners for new coupled groups of robots and get
+        //# their sub_search keys
+        coupled_keys =  get_subplanner_keys(col_set);
+        //# Generate the individually optimal setp
+        new_coord = [ sub_search[ policy_keys[i]].get_step(
+            start_coord[i]) for i in xrange( num_bots)];
+        //# Iterate over the colliding sets of robots,  and integrate the
+        //# results of the sup planning for each set
+        for (int i=0;i<(col_set).size();i++)
+        {
+            new_step =  sub_search[coupled_keys[i]].get_step(
+                tuple([start_coord[j] for j in col_set[i]]));
+            //# Copy the step into position
+            for (int j=0;j<(col_set[i]).size();j++)
+                new_coord[col_set[i][j]] = new_step[j];
+        }
+        new_coord = tuple(new_coord);
+        //# process the neighbor
+        pass_col =  pass_through(start_coord, new_coord);
+        if (pass_col.size()) > 0)
+            //# Have collisions before reaching node
+            return [], pass_col;
+        new_node =  get_node(new_coord, true);
+        if (node not in new_node.back_prop_set)
+            new_node.back_prop_set.append(node);
+        if (not new_node.free)
+            return [],  new_node.col_set;
+        //# Skip if closed
+        if (new_node.closed)
+            return [],  new_node.col_set;
+        //# Compute the costs. THIS MAY NOT WORK IF node IS AN INTERMEDIATE
+        //# NODE
+        t_cost =  get_node(start_coord, true).cost;
+        t_cost =  od_rmstar_transition_cost(start_coord, t_cost,
+                                                new_node.coord);
+        if (t_cost < new_node.cost)
+            {new_node.cost = t_cost;
+            return [new_node], new_node.col_set;};
+        return [], new_node.col_set;
+
+    }
+
+    int od_rmstar_transition_cost( vector<pair<int,int>> start_coord,vector<pair<int,int>> prev_cost, vector<pair<int,int>>new_coord)
+    {
+        /*"""Computes the transition cost for a single robot in od_rmstar
+        neighbor generation
+
+        start_coord - base position of robots (prior to move assignment)
+        prev_cost   - cost of base node
+        new_coord    - proposed move assignmetn
+
+        returns:
+
+        total cost of reaching new_coord via start_coord
+        """*/
+        for (int i=0;i<start_coord.size();i++)
+        {
+          if (!(start_coord[i] ==  goals[i] && start_coord[i] == new_coord[i]))
+                    prev_cost += 1;
+        }
+        return prev_cost;
+    }
+
+    neighbors_return alt_get_astar_neighbors( datatype node){
+        /*"""Gets neighbors of a specified node using the standard A*
+        approach.
+
+
+        assumes working with standard nodes
+
+        node - node for which to generate neighbors
+
+        returns:
+        (neighbors, col_set)
+        neighbors - coordinates of collision free neighboring nodes
+        col_set   - collisions resulting from trying to reach
+                    non-collision free neighbors
+        """*/
+        start_coord = node.coord;
+        //# Generate the individually optimal setp
+        base_coord = [ sub_search[ policy_keys[i]].get_step(
+                start_coord[i]) for(int i=0;i<num_bots.size();i++];
+        old_coords = [base_coord];
+        new_coords = [];
+        assert len(node.col_set) <= 1;
+        to_explore = node.col_set;
+        if  (full_space)
+            to_explore = [range( num_bots)];
+        for (int i=0;i<to_explore.size();i++)
+        {
+            for (int bot=0;bot<to_explore[i];bot++)
+            {
+                new_coords = [];
+                neighbors =  sub_search[ policy_keys[bot]].get_neighbors(start_coord[bot]);
+                for (neigh in neighbors)
+                    {for (k in old_coords)
+                        {temp = k[:];
+                        temp[bot] = neigh;
+                        new_coords.append(temp);}}
+                old_coords = new_coords;};};
+        col_set = [];
+        neighbors = [];
+ @@       old_coords = map(tuple, old_coords);
+        for (int i=0;i<old_coords.size();i++)
+        {
+            //# Check if we can get there
+            pass_col =  pass_through(start_coord, i);
+            if (pass_col.size() > 0)
+            {
+                col_set = col_set_add(pass_col, col_set,  recursive);
+                continue;
+            }
+            new_node =  get_node(i, true);
+            col_set = col_set_add(new_node.col_set, col_set,  recursive);
+            if (node not in new_node.back_prop_set)
+                new_node.back_prop_set.append(node);
+            if (not new_node.free)
+                continue;
+            //# update costs
+            if (new_node.closed)
+                continue;
+            t_cost = node.cost;
+            for (i in xrange(len(start_coord)))
+            {
+                if (!(start_coord[i] ==  goals[i] && start_coord[i] == new_node.coord[i]))
+                        t_cost += 1;
+            }
+            if (t_cost < new_node.cost)
+            {
+                new_node.cost = t_cost;
+                new_node.back_ptr = node;
+                neighbors.append(new_node);
+            }
+        }
+        neighbors_return st;
+                st.member1 = neighbors;
+                st.member2 = col_set;
+        return st;
+    }
+
+    def get_astar_neighbors( datatype node){
+        /*"""Gets neighbors of a specified node using the standard A*
+        approach,
+
+        assumes working with standard nodes
+
+        node - node for which to generate neighbors
+
+        returns:
+        (neighbors, col_set)
+        neighbors - coordinates of collision free neighboring nodes
+        col_set   - collisions resulting from trying to reach
+                    non-collision free neighbors
+        """*/
+        start_coord = node.coord;
+        //# Generate the individually optimal setp
+        base_coord = [ sub_search[ policy_keys[i]].get_step(start_coord[i]) for i in xrange( num_bots)];
+        old_coords = [base_coord];
+        new_coords = [];
+        assert len(node.col_set) <= 1;
+        to_explore = node.col_set;
+        if  (full_space)
+            to_explore = [range( num_bots)];
+        for (i in to_explore)
+           { for (bot in i)
+                {new_coords = [];
+                neighbors =  sub_search[ policy_keys[bot]]\
+                                .get_neighbors(start_coord[bot]);
+                for (neigh in neighbors)
+                    {for (k in old_coords)
+                        {temp = k[:];
+                        temp[bot] = neigh;
+                        new_coords.append(temp);}};}
+                old_coords = new_coords;};
+        col_set = [];
+        neighbors = [];
+
+        for(int i=0;i<old_coords.size();i++)
+        {
+            old_coords.append(tuple(old_coords[i]));
+        }
+
+
+        for (i in old_coords)
+            //# First check if this path is relevant.  I.e. if there is already a
+            //# better path to the node,  then the search will never try to use
+            //# that route,  so we don't need to consider collisions
+            {new_node =  get_node(i, true);
+            if (node.free)
+                t_cost = node.cost;
+                for (j in xrange(len(start_coord)))
+                    {if (not(start_coord[j] ==  goals[j] and
+                           start_coord[j] == new_node.coord[j]))
+                            t_cost += 1;};
+                if(t_cost >= new_node.cost)
+                    continue;
+            //# Check if we can get there
+            pass_col =  pass_through(start_coord, i);
+            if (len(pass_col) > 0)
+                {col_set = col_set_add(pass_col, col_set,  recursive);
+                continue;}
+            new_node =  get_node(i, true);
+            col_set = col_set_add(new_node.col_set, col_set,  recursive);
+            if (node not in new_node.back_prop_set)
+                new_node.back_prop_set.append(node);
+            if (not new_node.free)
+                continue;
+            //# update costs
+            if (new_node.closed)
+                continue;
+            if (t_cost < new_node.cost)
+                {new_node.cost = t_cost;
+                new_node.back_ptr = node;
+                neighbors.append(new_node);};};
+        neighbors_return st;
+                st.member1 = neighbors;
+                st.member2 = col_set;
+        return st;
+
+}
+
+
+for x in xrange(hu)
+
+    for(int i=0;i<hu.size();i++)
+
+len(s) - s.size()
+
+
+for i in hss -
+
+    for(int i=0;i<hss.size();i++)
+    {
+        hss[i]
+    }
+
+for(int i=0;i<old_coords.size();i++)
+        {
+            old_coords.append(tuple(old_coords[i]));
+        }
+
+@@      old_coords = map(tuple, old_coords);
+
+class mstar_node(object)
+{
+  /*  """Holds the data needed for a single node in operator decomposition
+    m* coord should be a tuple of tuples.  Standard nodes have
+    coordinates of the form ((x1, y1), (x2, y2), ...),  while
+    intermediate nodes have coordinates of the form (((x1, y1), ...),
+    move_tuple)
+    """*/
+    free;
+    vector<pair<int, int>> coord;
+    updated;
+    bool open;
+    bool closed;
+    standard_node;
+    h;
+    int cost;
+    back_ptr;
+    back_prop_set;
+    col_set;
+    recursive;
+    forward_ptr;
+    bool assignment;
+    colset_changed;
+    int offset;
+
+    public:
+    __slots__ = ['free', 'coord', 'updated', 'open', 'closed', 'standard_node',
+                 'h', 'cost', 'back_ptr', 'back_prop_set', 'col_set',
+                 'recursive', 'forwards_ptr', 'assignment', 'colset_changed',
+                 'offset']
+
+        mstar_node( coor, fre, recursiv, standard_nod, back_pt=None,
+                 forwards_pt=None){
+        /*"""Constructor for mstar_node
+
+        Assumes the col_set is empty by default
+
+        coord         - tuple giving coordinates,  may store partial
+                        moves if not standard node
+        free          - part of the free configuration space
+        standard_node - represents a standard node,  and not a partial
+                        move
+        back_ptr      - pointer to best node to get to self
+        forwards_ptr  - pointer along the best path to the goal
+        """*/
+         free = fre;
+         coord = coor;
+         updated = -1;
+        //# Whether already in the open list
+         open = False;
+
+        //# Whether this has been expanded.  Note that a node can be added
+        //# back to the open list after it has been expanded,  but will
+        //# still be marked as closed.  It cannot have its cost changed,
+        //# but it can add neighbors, but not be added as a neighbor
+         closed = False;
+         standard_node = standard_nod
+        //# Heuristic cost to go,  None to ensure it will be properly
+        //# calculated
+         h = None;
+        //# Cost to reach
+         cost = MAX_COST;
+
+        //# Optimal way to reach this node.  Point to self to indicate the
+        //# initial position
+         back_ptr = back_pt;
+         back_prop_set = [];  //# Ways found to reach this node
+         col_set = [];
+         recursive = recursiv;
+
+        //# Keeps track of solutions that have already been found,  replace
+        //# forwards_tree.  Denote the goal node by pointing forwards_ptr
+        //# to itself
+         forwards_ptr = forwards_ptr;
+         assignment = None ;// # Used for multiassignment mstar
+
+        //# Used to track whether new assignments need to be generated for
+        //# MURTY  mstar
+         colset_changed = False;
+        //# Tracks current offset for multiple re-expansion a la EPEA*
+         offset = 0;
+    }
+
+    void reset(self, t)
+        {//"""Resets if t > last update time"""
+            if (t >  updated)
+            {
+                 updated = t;
+                 open = False;
+                 closed = False;
+                 cost = MAX_COST;
+                 back_ptr = None;
+                 back_prop_set = [];
+                 offset = 0;
+            }
+        }
+
+    datatype(path) get_path(self)
+    {
+        /*"""Gets the path passing through path to the goal,  assumes that
+        self is either the goal node,  or a node connected to the goal
+        node through forwards_pointers
+        """*/
+        path =  backtrack_path();
+        return  forwards_extend_path(path);
+    }
+
+    datatype(path) backtrack_path(self, path=None, prev=None)
+        {/*"""Finds the path that leads up to this node,  updating
+        forwards_ptr so that we can recover this path quickly,  only
+        returns standard nodes
+
+        path - current reconstructed path for use in recusion, must
+               start as None
+        prev - pointer to the last node visited by backtrack_path, used
+               to update forwards_ptr to record the best paths to the
+               goal
+        """*/
+        if (path == Null)
+            path = [];
+        if (prev != None)
+            {forwards_ptr = prev;
+            if (isinstance( h, tuple))
+                //# Needed for constrained od_mstar,  and don't feel like
+                //# coming up with a better solution for now
+                 {h = (prev.h[0] + prev.cost[0] -  cost[0],  h[1]);}
+            else
+                 h = prev.h + (prev.cost -  cost);};
+        if  (standard_node)
+        {
+            assert  coord not in path;
+            path.insert(0,  coord);
+        }
+        if  (back_ptr == self)
+            //# Done so that it cannot terminate on a node that wasn't
+            //# properly initialized
+            return path;
+        return  back_ptr.backtrack_path(path, self);
+    }
+
+    datatype(path) forwards_extend_path(self, path){
+        /*"""Extends the path from self to the goal node,  following
+        forwards pointers,  only includes standard nodes
+
+        path - current path to extend towards the goal, as list of joint
+               configuration space coordinates
+        """*/
+        if  (forwards_ptr == self)
+            return path;
+        if  (forwards_ptr.standard_node)
+            path.append( forwards_ptr.coord);
+        return  forwards_ptr.forwards_extend_path(path);
+    }
+
+    bool add_col_set(self, c){
+        /*"""Adds the contents of c to  col_set.
+
+        c - collision set to add to the current node's collision set
+
+        returns:
+
+        True if modifications were made, else False
+        """*/
+        if (len(c) == 0)
+            return False;
+        temp = None;
+        modified = True;
+        if  (recursive)
+            {temp = add_col_set_recursive(c,  col_set);}
+        else
+            {temp = add_col_set(c,  col_set);
+        modified = (temp !=  col_set);};
+        if (modified)
+        {
+            col_set = temp;
+            return True;
+        }
+        return False;
+    }
+
+     void back_prop_col_set(self, new_col, open_list, epeastar=False){
+        /*"""Propagates the collision dependencies found by its children
+        to the parent,  which adds any new dependencies to this col_set
+
+        new_col   - the new collision set to add
+        open_list - the open list to which nodes with changed collisoin
+                    sets are added,  assumed to be a SortedCollection
+        """*/
+        further =  add_col_set(new_col);
+        if (further)
+        {
+            colset_changed = True;
+            if (!open)
+                {//# assert  closed
+                 open = True;
+                //#  closed = False
+                 offset = 0;
+
+               // # Inserting to the left of any node with the same key
+               // # value,  to encourage exploring closer to the collison
+                open_list.insert(self);
+                }
+            else if (epeastar !=0 && offset != 0){
+                //# Need to reset the offset and reinsert to allow a path
+                //# to be found even if the node is already in the open
+                //# list
+                 offset = 0;
+               // # Inserting to the left of any node with the same key
+                //# value, to encourage exploring closer to the collison
+                open_list.insert(self);
+                }
+            for (j in  back_prop_set)
+                j.back_prop_col_set( col_set, open_list, epeastar=epeastar);
+        }
+
+    }
+
+    vector<pair<int, int>> get_step(self)
+    {/*"""Returns the coordinate of the next standard node in the path,
+
+        returns:
+
+        None if no such thing
+        """*/
+        if  (forwards_ptr is None)
+            return None;
+        if  (forwards_ptr.standard_node)
+        {
+            return  forwards_ptr.coord;
+        }
+        else
+            return  forwards_ptr.get_step();
+    }
+
+
+datatype(path) individually_optimal_paths(obs_map, init_pos, goals)
+{ //"""Returns the individually optimal paths for a system"""
+    path = [];
+    for (i in xrange(len(init_pos)))
+    {
+        path.append(find_path(obs_map, [init_pos[i]], [goals[i]]));
+    }
+    //# Need to convert to full space
+    max_length = max(map(len, path));
+    for (i in path)
+    {
+        while (len(i) < max_length)
+            i.append(i[-1]);
+    }
+    jpath = [];
+    for (i in xrange(max_length))
+    {
+        temp = [];
+        for (j in path)
+        {
+            temp.append(j[i][0]);
+        }
+        jpath.append(temp);
+    }
+    return jpath;
+}
+
+
+datatype(path) find_path_limited_graph(obs_map, init_pos, goals, recursive=True,
+                            inflation=1.0, time_limit=5 * 60.0, astar=False,
+                            get_obj=False, connect_8=False, full_space=False,
+                            return_memory=False, flood_fill_policy=False,
+                            pruning_passes=5)
+    {
+        global global_move_list;
+        global_move_list = [];
+        o = Od_Mstar(obs_map, goals, recursive=recursive, inflation=inflation,
+                     astar=astar, connect_8=connect_8, full_space=full_space,
+                     flood_fill_policy=flood_fill_policy);
+        import prune_graph;
+        G = prune_graph.to_networkx_graph(obs_map);
+        for (i in xrange(pruning_passes))
+            G = prune_graph.prune_opposing_edge(G, num_edges=5);
+       // # Replace the individual policies with limited graphs
+        for (int i=0;i<o.goals.size();i++)
+        {
+            o.sub_search[(i, )] = workspace_graph.Networkx_Graph(obs_map, goals[i], graph=G, connect_8=connect_8);
+        //# Need to make sure that the recursion limit is great enough to
+        //# actually construct the path
+        int longest = max([o.sub_search[(i, )].get_cost(init_pos[i])
+                       for(int i=0;i<init_pos.size();i++)]);
+        //# Guess that the longest path will not be any longer than 5 times the
+        //# longest individual robot path
+        sys.setrecursionlimit(max(sys.getrecursionlimit(), longest * 5 *
+                                  len(init_pos)))
+        path = o.find_path(init_pos, time_limit=time_limit)
+        num_nodes = o.get_memory_useage(False)
+        corrected_mem = o.get_memory_useage(True)
+        if (get_obj)
+            return path, o;
+        //# if visualize:
+        //#     return path,  global_move_list
+        if (return_memory)
+            return path, num_nodes, corrected_mem;
+        return path;
+        }
+    }
+};
